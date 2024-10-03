@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Festival Drink Tracker</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            max-width: 450px;
+            width: 100%;
+        }
+        h1, h2, h3 {
+            text-align: center;
+            color: #4a5568;
+            font-weight: 700;
+        }
+        .drink-count {
+            font-size: 3em;
+            text-align: center;
+            margin: 20px 0;
+            color: #4299e1;
+            font-weight: bold;
+        }
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .add {
+            background-color: #48bb78;
+            color: white;
+        }
+        .subtract {
+            background-color: #f56565;
+            color: white;
+        }
+        .add:hover, .subtract:hover {
+            transform: translateY(-3px);
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #e2e8f0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .progress {
+            width: 0;
+            height: 20px;
+            background-color: #4299e1;
+            transition: width 0.5s ease-in-out;
+        }
+        .user-list {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 1.1em;
+        }
+        .user-item:last-child {
+            border-bottom: none;
+        }
+        .auth-buttons {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .auth-buttons button {
+            background-color: #4299e1;
+            color: white;
+            margin: 0 5px;
+            border-radius: 8px;
+        }
+        .hidden {
+            display: none;
+        }
+        .alert {
+            background-color: #fed7d7;
+            border-left: 4px solid #f56565;
+            color: #c53030;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        .error-message {
+            color: #f56565;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="authSection">
+            <h1>Festival Drink Tracker</h1>
+            <div id="loginForm">
+                <h2>Iniciar Sesión</h2>
+                <form id="loginFormElement">
+                    <input type="email" id="loginEmail" placeholder="Correo electrónico" required>
+                    <input type="password" id="loginPassword" placeholder="Contraseña" required>
+                    <button type="submit">Iniciar Sesión</button>
+                </form>
+                <p id="loginError" class="error-message"></p>
+                <p>¿No tienes una cuenta? <a href="#" id="showRegister">Regístrate</a></p>
+            </div>
+            <div id="registerForm" class="hidden">
+                <h2>Registro</h2>
+                <form id="registerFormElement">
+                    <input type="text" id="registerName" placeholder="Nombre" required>
+                    <input type="email" id="registerEmail" placeholder="Correo electrónico" required>
+                    <input type="password" id="registerPassword" placeholder="Contraseña" required>
+                    <button type="submit">Registrarse</button>
+                </form>
+                <p id="registerError" class="error-message"></p>
+                <p>¿Ya tienes una cuenta? <a href="#" id="showLogin">Inicia sesión</a></p>
+            </div>
+        </div>
+        
+        <div id="trackerSection" class="hidden">
+            <h1>Festival Drink Tracker</h1>
+            <h2 id="welcomeMsg"></h2>
+            <div class="drink-count" id="drinkCount">0</div>
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
+            </div>
+            <div class="buttons">
+                <button class="subtract" id="subtractBtn">-</button>
+                <button class="add" id="addBtn">+</button>
+            </div>
+            <div id="alert" class="alert hidden">
+                ¡Cuidado! Has alcanzado 5 copas. Considera reducir tu consumo.
+            </div>
+            <div class="user-list">
+                <h3>Usuarios</h3>
+                <div id="userList"></div>
+            </div>
+            <div class="auth-buttons">
+                <button id="logoutBtn">Cerrar Sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjDDCTnDNZB7H1f-_1MgvzPC87GMq8WyM",
+            authDomain: "festival-drink-tracker.firebaseapp.com",
+            databaseURL: "https://festival-drink-tracker-default-rtdb.firebaseio.com",
+            projectId: "festival-drink-tracker",
+            storageBucket: "festival-drink-tracker.appspot.com",
+            messagingSenderId: "450772683618",
+            appId: "1:450772683618:web:7e35b69fde42708ef73a3b",
+            measurementId: "G-05G0BFFJ27"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(); // Usar Firestore
+
+        // Referencias a elementos del DOM
+        const authSection = document.getElementById('authSection');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const trackerSection = document.getElementById('trackerSection');
+        const loginFormElement = document.getElementById('loginFormElement');
+        const registerFormElement = document.getElementById('registerFormElement');
+        const showRegister = document.getElementById('showRegister');
+        const showLogin = document.getElementById('showLogin');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const welcomeMsg = document.getElementById('welcomeMsg');
+        const drinkCount = document.getElementById('drinkCount');
+        const progressBar = document.getElementById('progressBar');
+        const subtractBtn = document.getElementById('subtractBtn');
+        const addBtn = document.getElementById('addBtn');
+        const userList = document.getElementById('userList');
+        const alertElement = document.getElementById('alert');
+        const loginError = document.getElementById('loginError');
+        const registerError = document.getElementById('registerError');
+
+        let currentUser = null;
+        let userDrinks = 0;
+
+        // Funciones de autenticación
+        loginFormElement.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .catch(error => {
+                    loginError.textContent = error.message;
+                });
+        });
+
+        registerFormElement.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Guardar el nombre del usuario en Firestore
+                    return db.collection('users').doc(userCredential.user.uid).set({
+                        name: name,
+                        drinks: 0
+                    });
+                })
+                .catch(error => {
+                    registerError.textContent = error.message;
+                });
+        });
+
+        showRegister.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+        });
+
+        showLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            firebase.auth().signOut()
+                .catch(error => console.error("Error de cierre de sesión:", error));
+        });
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                authSection.classList.add('hidden');
+                trackerSection.classList.remove('hidden');
+                loadUserData();
+                listenForUserChanges();
+            } else {
+                currentUser = null;
+                authSection.classList.remove('hidden');
+                trackerSection.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                userDrinks = 0;
+                updateUI();
+            }
+        });
+
+        // Funciones de la base de datos
+        function loadUserData() {
+            const userDoc = db.collection('users').doc(currentUser.uid);
+            userDoc.onSnapshot((doc) => {
+                const userData = doc.data();
+                if (userData) {
+                    welcomeMsg.textContent = `Bienvenido, ${userData.name}!`;
+                    userDrinks = userData.drinks || 0;
+                    updateUI(); // Actualiza la interfaz con la cantidad de bebidas
+                }
+            });
+        }
+
+        function updateUserData() {
+            if (!currentUser) return;
+            db.collection('users').doc(currentUser.uid).update({
+                drinks: userDrinks
+            });
+        }
+
+        function listenForUserChanges() {
+            const usersCollection = db.collection('users').orderBy('drinks', 'desc'); // Ordenar por copas
+            usersCollection.onSnapshot((snapshot) => {
+                const users = snapshot.docs.map(doc => doc.data());
+                console.log("Usuarios:", users); // Verificar que los datos estén llegando
+                updateUserList(users);
+            });
+        }
+
+        function updateUserList(users) {
+            userList.innerHTML = ''; // Limpiar el contenido anterior
+            if (!users.length) {
+                userList.innerHTML = '<p>No hay usuarios en la base de datos.</p>'; // Mensaje si no hay usuarios
+                return;
+            }
+
+            users.forEach((user) => {
+                const item = document.createElement('div');
+                item.className = 'user-item';
+                item.innerHTML = `
+                    <span>${user.name}</span>
+                    <span>${user.drinks} copas</span>
+                `;
+                if (user.uid === currentUser.uid) {
+                    item.style.fontWeight = 'bold'; // Resaltar el usuario actual
+                }
+                userList.appendChild(item); // Agregar al listado de usuarios
+            });
+        }
+
+        // Funciones de la UI
+        function updateUI() {
+            animateValue(parseInt(drinkCount.textContent), userDrinks, 500);
+            progressBar.style.width = `${(userDrinks / 5) * 100}%`;
+            alertElement.classList.toggle('hidden', userDrinks < 5);
+        }
+
+        subtractBtn.addEventListener('click', () => {
+            if (userDrinks > 0) {
+                userDrinks--;
+                updateUI();
+                updateUserData();
+            }
+        });
+
+        addBtn.addEventListener('click', () => {
+            userDrinks++;
+            updateUI();
+            updateUserData();
+        });
+
+        // Animación para el contador de bebidas
+        function animateValue(start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                drinkCount.textContent = Math.floor(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+    </script>
+</body>
+</html>
